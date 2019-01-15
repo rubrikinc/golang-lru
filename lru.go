@@ -17,10 +17,18 @@ func New(size int) (*Cache, error) {
 	return NewWithEvict(size, nil)
 }
 
-// NewWithEvict constructs a fixed size cache with the given eviction
-// callback.
-func NewWithEvict(size int, onEvicted func(key interface{}, value interface{})) (*Cache, error) {
-	lru, err := simplelru.NewLRU(size, simplelru.EvictCallback(onEvicted))
+// NewWithAcquireAndEvict constructs a fixed size cache with the given eviction
+// and acquire callbacks.
+func NewWithAcquireAndEvict(
+	size int,
+	onEvicted func(key interface{}, value interface{}),
+	onAcquire func(key interface{}, value interface{}),
+) (*Cache, error) {
+	lru, err := simplelru.NewLRUWithAcquire(
+		size,
+		simplelru.EvictCallback(onEvicted),
+		simplelru.AcquireCallback(onAcquire),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -28,6 +36,15 @@ func NewWithEvict(size int, onEvicted func(key interface{}, value interface{})) 
 		lru: lru,
 	}
 	return c, nil
+}
+
+// NewWithEvict constructs a fixed size cache with the given eviction
+// callback.
+func NewWithEvict(
+	size int,
+	onEvicted func(key interface{}, value interface{}),
+) (*Cache, error) {
+	return NewWithAcquireAndEvict(size, nil, nil)
 }
 
 // Purge is used to completely clear the cache.
