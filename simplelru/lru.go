@@ -61,6 +61,20 @@ func (c *LRU) Purge() {
 	c.evictList.Init()
 }
 
+// GetOrAdd tries to lookup a key in the cache, returning the value.
+// Otherwise, add the key value pair, returning the value.
+// Along with if an eviction occurred.
+func (c *LRU) GetOrAdd(key, value interface{}) (interface{}, bool) {
+	// Check for existing item.
+	if val, ok := c.Get(key); ok {
+		return val, false // No eviction on Get.
+	}
+
+	// Add new item.
+	evicted := c.addItem(key, value)
+	return value, evicted
+}
+
 // Add adds a value to the cache.  Returns true if an eviction occurred.
 func (c *LRU) Add(key, value interface{}) (evicted bool) {
 	// Check for existing item
@@ -73,19 +87,8 @@ func (c *LRU) Add(key, value interface{}) (evicted bool) {
 		return false
 	}
 
-	// Add new item
-	ent := &entry{key, value}
-	elem := c.evictList.PushFront(ent)
-	c.items[key] = elem
-	if c.onAcquire != nil {
-		c.onAcquire(key, elem.Value.(*entry).value)
-	}
-	evict := c.evictList.Len() > c.size
-	// Verify size not exceeded
-	if evict {
-		c.removeOldest()
-	}
-	return evict
+	return c.addItem(key, value)
+
 }
 
 // Get looks up a key's value from the cache.
@@ -180,4 +183,20 @@ func (c *LRU) removeElement(e *list.Element) {
 	if c.onEvict != nil {
 		c.onEvict(kv.key, kv.value)
 	}
+}
+
+// addItem adds an item. Should only be used if the item does not exist already.
+func (c *LRU) addItem(key, value interface{}) (evict bool) {
+	ent := &entry{key, value}
+	elem := c.evictList.PushFront(ent)
+	c.items[key] = elem
+	if c.onAcquire != nil {
+		c.onAcquire(key, elem.Value.(*entry).value)
+	}
+	evict = c.evictList.Len() > c.size
+	// Verify size not exceeded
+	if evict {
+		c.removeOldest()
+	}
+	return evict
 }
