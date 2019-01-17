@@ -62,16 +62,16 @@ func (c *LRU) Purge() {
 
 // GetOrAdd tries to lookup a key in the cache, returning the value.
 // Otherwise, add the key value pair, returning the value.
-// Along with if an eviction occurred.
-func (c *LRU) GetOrAdd(key, value interface{}) (interface{}, bool) {
+// Along with if an eviction occurred and if value was added.
+func (c *LRU) GetOrAdd(key, value interface{}) (interface{}, bool, bool) {
 	// Check for existing item.
 	if val, ok := c.Get(key); ok {
-		return val, false // No eviction on Get.
+		return val, false, false // No eviction on Get.
 	}
 
 	// Add new item.
 	evicted := c.addItem(key, value)
-	return value, evicted
+	return value, evicted, true
 }
 
 // Add adds a value to the cache.  Returns true if an eviction occurred.

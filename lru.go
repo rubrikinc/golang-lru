@@ -56,11 +56,11 @@ func (c *Cache) Purge() {
 
 // GetOrAdd tries to lookup a key in the cache, returning the value.
 // Otherwise, add the key value pair, returning the value.
-// Along with if an eviction occurred.
+// Along with if an eviction occurred and if value was added.
 func (c *Cache) GetOrAdd(
 	key interface{},
 	value interface{},
-) (val interface{}, evicted bool) {
+) (val interface{}, evicted bool, added bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	return c.lru.GetOrAdd(key, value)
