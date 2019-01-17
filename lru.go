@@ -21,13 +21,13 @@ func New(size int) (*Cache, error) {
 // and acquire callbacks.
 func NewWithAcquireAndEvict(
 	size int,
-	onEvicted func(key interface{}, value interface{}),
 	onAcquire func(key interface{}, value interface{}),
+	onEvicted func(key interface{}, value interface{}),
 ) (*Cache, error) {
-	lru, err := simplelru.NewLRUWithAcquire(
+	lru, err := simplelru.NewLRUWithAcquireAndEvict(
 		size,
-		simplelru.EvictCallback(onEvicted),
 		simplelru.AcquireCallback(onAcquire),
+		simplelru.EvictCallback(onEvicted),
 	)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func NewWithEvict(
 	size int,
 	onEvicted func(key interface{}, value interface{}),
 ) (*Cache, error) {
-	return NewWithAcquireAndEvict(size, nil, nil)
+	return NewWithAcquireAndEvict(size, nil, onEvicted)
 }
 
 // Purge is used to completely clear the cache.

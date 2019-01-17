@@ -30,19 +30,19 @@ type ARCCache struct {
 // NewARC creates an ARC of the given size
 func NewARC(size int) (*ARCCache, error) {
 	// Create the sub LRUs
-	b1, err := simplelru.NewLRU(size, nil)
+	b1, err := simplelru.NewLRUWithEvict(size, nil)
 	if err != nil {
 		return nil, err
 	}
-	b2, err := simplelru.NewLRU(size, nil)
+	b2, err := simplelru.NewLRUWithEvict(size, nil)
 	if err != nil {
 		return nil, err
 	}
-	t1, err := simplelru.NewLRU(size, nil)
+	t1, err := simplelru.NewLRUWithEvict(size, nil)
 	if err != nil {
 		return nil, err
 	}
-	t2, err := simplelru.NewLRU(size, nil)
+	t2, err := simplelru.NewLRUWithEvict(size, nil)
 	if err != nil {
 		return nil, err
 	}

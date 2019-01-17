@@ -27,10 +27,10 @@ type entry struct {
 	value interface{}
 }
 
-func NewLRUWithAcquire(
+func NewLRUWithAcquireAndEvict(
 	size int,
-	onEvict EvictCallback,
 	onAcquire AcquireCallback,
+	onEvict EvictCallback,
 ) (*LRU, error) {
 	if size <= 0 {
 		return nil, errors.New("Must provide a positive size")
@@ -45,9 +45,8 @@ func NewLRUWithAcquire(
 	return c, nil
 }
 
-// NewLRU constructs an LRU of the given size
-func NewLRU(size int, onEvict EvictCallback) (*LRU, error) {
-	return NewLRUWithAcquire(size, onEvict, nil)
+func NewLRUWithEvict(size int, onEvict EvictCallback) (*LRU, error) {
+	return NewLRUWithAcquireAndEvict(size, nil, onEvict)
 }
 
 // Purge is used to completely clear the cache.
