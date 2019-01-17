@@ -3,7 +3,7 @@ package lru
 import (
 	"sync"
 
-	"github.com/choutim/golang-lru/simplelru"
+	"github.com/rubrikinc/golang-lru/simplelru"
 )
 
 // ARCCache is a thread-safe fixed size Adaptive Replacement Cache (ARC).
