@@ -10,6 +10,11 @@ type LRUCache interface {
 	// updates the "recently used"-ness of the key. #value, isFound
 	Get(key interface{}) (value interface{}, ok bool)
 
+	// GetOrAdd tries to lookup a key in the cache, returning the value.
+	// Otherwise, add the key value pair, returning the value.
+	// Along with if an eviction occurred and if value was added.
+	GetOrAdd(key, value interface{}) (val interface{}, evicted bool, added bool)
+
 	// Check if a key exsists in cache without updating the recent-ness.
 	Contains(key interface{}) (ok bool)
 

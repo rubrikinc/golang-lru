@@ -8,11 +8,16 @@ import (
 // EvictCallback is used to get a callback when a cache entry is evicted
 type EvictCallback func(key interface{}, value interface{})
 
+// AcquireCallback is used to get a callback when a cache entry is acquired,
+// either through Add or Get.
+type AcquireCallback func(key interface{}, value interface{})
+
 // LRU implements a non-thread safe fixed size LRU cache
 type LRU struct {
 	size      int
 	evictList *list.List
 	items     map[interface{}]*list.Element
+	onAcquire AcquireCallback
 	onEvict   EvictCallback
 }
 
@@ -22,8 +27,11 @@ type entry struct {
 	value interface{}
 }
 
-// NewLRU constructs an LRU of the given size
-func NewLRU(size int, onEvict EvictCallback) (*LRU, error) {
+func NewLRUWithAcquireAndEvict(
+	size int,
+	onAcquire AcquireCallback,
+	onEvict EvictCallback,
+) (*LRU, error) {
 	if size <= 0 {
 		return nil, errors.New("Must provide a positive size")
 	}
@@ -32,8 +40,13 @@ func NewLRU(size int, onEvict EvictCallback) (*LRU, error) {
 		evictList: list.New(),
 		items:     make(map[interface{}]*list.Element),
 		onEvict:   onEvict,
+		onAcquire: onAcquire,
 	}
 	return c, nil
+}
+
+func NewLRUWithEvict(size int, onEvict EvictCallback) (*LRU, error) {
+	return NewLRUWithAcquireAndEvict(size, nil, onEvict)
 }
 
 // Purge is used to completely clear the cache.
@@ -47,32 +60,43 @@ func (c *LRU) Purge() {
 	c.evictList.Init()
 }
 
+// GetOrAdd tries to lookup a key in the cache, returning the value.
+// Otherwise, add the key value pair, returning the value.
+// Along with if an eviction occurred and if value was added.
+func (c *LRU) GetOrAdd(key, value interface{}) (interface{}, bool, bool) {
+	// Check for existing item.
+	if val, ok := c.Get(key); ok {
+		return val, false, false // No eviction on Get.
+	}
+
+	// Add new item.
+	evicted := c.addItem(key, value)
+	return value, evicted, true
+}
+
 // Add adds a value to the cache.  Returns true if an eviction occurred.
 func (c *LRU) Add(key, value interface{}) (evicted bool) {
 	// Check for existing item
 	if ent, ok := c.items[key]; ok {
 		c.evictList.MoveToFront(ent)
 		ent.Value.(*entry).value = value
+		if c.onAcquire != nil {
+			c.onAcquire(key, ent.Value.(*entry).value)
+		}
 		return false
 	}
 
-	// Add new item
-	ent := &entry{key, value}
-	entry := c.evictList.PushFront(ent)
-	c.items[key] = entry
+	return c.addItem(key, value)
 
-	evict := c.evictList.Len() > c.size
-	// Verify size not exceeded
-	if evict {
-		c.removeOldest()
-	}
-	return evict
 }
 
 // Get looks up a key's value from the cache.
 func (c *LRU) Get(key interface{}) (value interface{}, ok bool) {
 	if ent, ok := c.items[key]; ok {
 		c.evictList.MoveToFront(ent)
+		if c.onAcquire != nil {
+			c.onAcquire(key, ent.Value.(*entry).value)
+		}
 		return ent.Value.(*entry).value, true
 	}
 	return
@@ -158,4 +182,20 @@ func (c *LRU) removeElement(e *list.Element) {
 	if c.onEvict != nil {
 		c.onEvict(kv.key, kv.value)
 	}
+}
+
+// addItem adds an item. Should only be used if the item does not exist already.
+func (c *LRU) addItem(key, value interface{}) (evict bool) {
+	ent := &entry{key, value}
+	elem := c.evictList.PushFront(ent)
+	c.items[key] = elem
+	if c.onAcquire != nil {
+		c.onAcquire(key, elem.Value.(*entry).value)
+	}
+	evict = c.evictList.Len() > c.size
+	// Verify size not exceeded
+	if evict {
+		c.removeOldest()
+	}
+	return evict
 }

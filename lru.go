@@ -3,7 +3,7 @@ package lru
 import (
 	"sync"
 
-	"github.com/hashicorp/golang-lru/simplelru"
+	"github.com/rubrikinc/golang-lru/simplelru"
 )
 
 // Cache is a thread-safe fixed size LRU cache.
@@ -17,10 +17,18 @@ func New(size int) (*Cache, error) {
 	return NewWithEvict(size, nil)
 }
 
-// NewWithEvict constructs a fixed size cache with the given eviction
-// callback.
-func NewWithEvict(size int, onEvicted func(key interface{}, value interface{})) (*Cache, error) {
-	lru, err := simplelru.NewLRU(size, simplelru.EvictCallback(onEvicted))
+// NewWithAcquireAndEvict constructs a fixed size cache with the given eviction
+// and acquire callbacks.
+func NewWithAcquireAndEvict(
+	size int,
+	onAcquire func(key interface{}, value interface{}),
+	onEvicted func(key interface{}, value interface{}),
+) (*Cache, error) {
+	lru, err := simplelru.NewLRUWithAcquireAndEvict(
+		size,
+		simplelru.AcquireCallback(onAcquire),
+		simplelru.EvictCallback(onEvicted),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -30,11 +38,32 @@ func NewWithEvict(size int, onEvicted func(key interface{}, value interface{})) 
 	return c, nil
 }
 
+// NewWithEvict constructs a fixed size cache with the given eviction
+// callback.
+func NewWithEvict(
+	size int,
+	onEvicted func(key interface{}, value interface{}),
+) (*Cache, error) {
+	return NewWithAcquireAndEvict(size, nil, onEvicted)
+}
+
 // Purge is used to completely clear the cache.
 func (c *Cache) Purge() {
 	c.lock.Lock()
 	c.lru.Purge()
 	c.lock.Unlock()
+}
+
+// GetOrAdd tries to lookup a key in the cache, returning the value.
+// Otherwise, add the key value pair, returning the value.
+// Along with if an eviction occurred and if value was added.
+func (c *Cache) GetOrAdd(
+	key interface{},
+	value interface{},
+) (val interface{}, evicted bool, added bool) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return c.lru.GetOrAdd(key, value)
 }
 
 // Add adds a value to the cache.  Returns true if an eviction occurred.
