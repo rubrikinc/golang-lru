@@ -1,1 +1,3 @@
-module github.com/choutim/golang-lru
+module github.com/rubrikinc/golang-lru
+
+go 1.14
